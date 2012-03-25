@@ -43,9 +43,6 @@
          }
       },
       "runtime" : {
-         "recommends" : {
-            "JSON" : "2.00"
-         },
          "requires" : {
             "Task::Weaken" : "0",
             "XSLoader" : "0.02",
@@ -57,11 +54,8 @@
    "resources" : {
       "license" : [
          "http://dev.perl.org/licenses/"
-      ],
-      "repository" : {
-         "url" : "http://github.com/lestrrat/p5-ZMQ"
-      }
+      ]
    },
-   "version" : "0.20",
+   "version" : "1.00",
    "x_module_name" : "ZMQ::LibZMQ2"
 }

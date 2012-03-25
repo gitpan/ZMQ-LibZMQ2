@@ -30,13 +30,10 @@ no_index:
     - inc
     - t
     - xt
-recommends:
-  JSON: 2.00
 requires:
   Task::Weaken: 0
   XSLoader: 0.02
   ZMQ::Constants: 1.00
 resources:
   license: http://dev.perl.org/licenses/
-  repository: http://github.com/lestrrat/p5-ZMQ
 version: 1.00

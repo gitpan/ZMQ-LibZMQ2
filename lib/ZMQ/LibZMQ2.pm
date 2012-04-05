@@ -71,6 +71,8 @@ sub zmq_setsockopt {
     goto &{"zmq_setsockopt_$type"}
 }
 
+sub ZMQ::LibZMQ2::Socket::CLONE_SKIP { 1 } 
+
 1;
 
 __END__
@@ -224,7 +226,7 @@ you cannot share sockets.
 
 =head1 FUNCTIONS
 
-ZMQ::LibZMQ2 attempts to stick to the libzmq interface as much as possible. Unless there is a structure is what the Perl binding expects, no function should throw an exception.
+ZMQ::LibZMQ2 attempts to stick to the libzmq interface as much as possible. Unless there is a structural problem (say, an underlying poitner that the Perl binding expects was missing), no function should throw an exception.
 
 Return values should resemble that of libzmq, except for when new data is allocated and returned to the user - That includes things like C<zmq_init()>, C<zmq_socket()>, C<zmq_msg_data()>, etc.
 
@@ -262,6 +264,12 @@ Returns a non-zero status upon failure, and sets $!.
 Creates a new socket object. C<$socket_types> are constants declared in ZMQ::Constants. Sockets cannot be reused across threads.
 
 Returns undef upon error, and sets $!.
+
+C<ZMQ::LibZMQ2::Socket> objects aren't thread safe due to the underlying 
+library.  Therefore, they are currently not cloned when a new Perl ithread is
+spawned. The variables in the new thread that contained the socket in the 
+parent thread will be a scalar reference to C<undef> in the new thread.
+This makes the Perl wrapper thread safe (i.e. no segmentation faults).T
 
 =head2 $rv = zmq_bind( $sock, $address )
 

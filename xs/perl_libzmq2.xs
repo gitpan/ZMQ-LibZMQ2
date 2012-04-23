@@ -83,7 +83,7 @@ PerlLibzmq2_zmq_getsockopt_string(PerlLibzmq2_Socket *sock, int option, size_t l
     SV     *sv;
 
     Newxz(string, len, char);
-    status = zmq_getsockopt(sock->socket, option, &string, &len);
+    status = zmq_getsockopt(sock->socket, option, string, &len);
     if(status == 0) {
         sv = newSVpvn(string, len);
     } else {
@@ -751,7 +751,7 @@ PerlLibzmq2_zmq_setsockopt_string(sock, option, value)
     OUTPUT:
         RETVAL
 
-int
+SV *
 PerlLibzmq2_zmq_poll( list, timeout = 0 )
         AV *list;
         long timeout;
@@ -760,7 +760,9 @@ PerlLibzmq2_zmq_poll( list, timeout = 0 )
         zmq_pollitem_t *pollitems;
         CV **callbacks;
         int i;
-    CODE:
+        int rv;
+        int eventfired;
+    PPCODE:
         list_len = av_len( list ) + 1;
         if (list_len <= 0) {
             XSRETURN(0);
@@ -825,31 +827,38 @@ PerlLibzmq2_zmq_poll( list, timeout = 0 )
         }
 
         /* now call zmq_poll */
-        RETVAL = zmq_poll( pollitems, list_len, timeout );
-        if (RETVAL < 0) {
-            SET_BANG;
+        rv = zmq_poll( pollitems, list_len, timeout );
+        SET_BANG;
+        
+        if (rv != -1) {
+            for ( i = 0; i < list_len; i++ ) {
+                eventfired = 
+                    (pollitems[i].revents & pollitems[i].events) ? 1 : 0;
+                if (GIMME_V == G_ARRAY) {
+                    mXPUSHi(eventfired);
+                }
+                if (eventfired) {
+                    dSP;
+                    ENTER;
+                    SAVETMPS;
+                    PUSHMARK(SP);
+                    PUTBACK;
+
+                    call_sv( (SV*)callbacks[i], G_SCALAR );
+                    SPAGAIN;
+
+                    PUTBACK;
+                    FREETMPS;
+                    LEAVE;
+                }
+            }
         }
 
-        for ( i = 0; i < list_len; i++ ) {
-            if (pollitems[i].revents & pollitems[i].events) {
-                dSP;
-                ENTER;
-                SAVETMPS;
-                PUSHMARK(SP);
-                PUTBACK;
-
-                call_sv( (SV*)callbacks[i], G_SCALAR );
-                SPAGAIN;
-
-                PUTBACK;
-                FREETMPS;
-                LEAVE;
-            }
+        if (GIMME_V == G_SCALAR) {
+            mXPUSHi(rv);
         }
         Safefree(pollitems);
         Safefree(callbacks);
-    OUTPUT:
-        RETVAL
 
 int
 PerlLibzmq2_zmq_device( device, insocket, outsocket )

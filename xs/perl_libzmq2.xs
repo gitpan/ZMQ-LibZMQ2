@@ -188,26 +188,51 @@ PerlLibzmq2_Message_mg_find(pTHX_ SV* const sv, const MGVTBL* const vtbl){
 }
 
 STATIC_INLINE int
+PerlLibzmq2_Context_invalidate( PerlLibzmq2_Context *ctxt ) {
+    int rv = -1;
+    int close = 1;
+    if (ctxt->ctxt == NULL) {
+        close = 0;
+        PerlLibzmq2_trace( " + context already seems to be freed");
+    }
+
+    if (ctxt->pid != getpid()) {
+        close = 0;
+        PerlLibzmq2_trace( " + context was not created in this process");
+    }
+
+#ifdef USE_ITHREADS
+    if (ctxt->interp != aTHX) {
+        close = 0;
+        PerlLibzmq2_trace( " + context was not created in this thread");
+    }
+#endif
+    if (close) {
+        PerlLibzmq2_trace( " + calling actual zmq_term()");
+        rv = zmq_term( ctxt->ctxt );
+        if ( rv != 0 ) {
+            SET_BANG;
+        } else {
+#ifdef USE_ITHREADS
+            ctxt->interp = NULL;
+#endif
+            ctxt->ctxt   = NULL;
+            ctxt->pid    = 0;
+            Safefree(ctxt);
+        }
+    }
+    return rv;
+}
+
+STATIC_INLINE int
 PerlLibzmq2_Context_mg_free( pTHX_ SV * const sv, MAGIC *const mg ) {
     PerlLibzmq2_Context* const ctxt = (PerlLibzmq2_Context *) mg->mg_ptr;
     PERL_UNUSED_VAR(sv);
 
     PerlLibzmq2_trace("START mg_free (Context)");
     if (ctxt != NULL) {
-#ifdef USE_ITHREADS
-        PerlLibzmq2_trace( " + thread enabled. thread %p", aTHX );
-        PerlLibzmq2_trace( " + context wrapper %p with zmq context %p", ctxt, ctxt->ctxt );
-        if ( ctxt->interp == aTHX ) { /* is where I came from */
-            PerlLibzmq2_trace( " + detected mg_free from creating thread %p, cleaning up", aTHX );
-            zmq_term( ctxt->ctxt );
-            mg->mg_ptr = NULL;
-            Safefree(ctxt);
-        }
-#else
-        PerlLibzmq2_trace(" + zmq context %p", ctxt);
-        zmq_term( ctxt );
+        PerlLibzmq2_Context_invalidate( ctxt );
         mg->mg_ptr = NULL;
-#endif
     }
     PerlLibzmq2_trace("END mg_free (Context)");
     return 1;
@@ -245,6 +270,9 @@ PerlLibzmq2_Socket_invalidate( PerlLibzmq2_Socket *sock )
     int rv;
 
     PerlLibzmq2_trace("START socket_invalidate");
+    if (sock->pid != getpid()) {
+        return 0;
+    }
     PerlLibzmq2_trace(" + zmq socket %p", sock->socket);
     rv = zmq_close( sock->socket );
 
@@ -367,41 +395,31 @@ PerlLibzmq2_zmq_init( nthreads = 5 )
             SET_BANG;
             RETVAL = NULL;
         } else {
+            Newxz( RETVAL, 1, PerlLibzmq2_Context );
+            PerlLibzmq2_trace( " + created context wrapper %p", RETVAL );
+            RETVAL->ctxt   = cxt;
+            RETVAL->pid    = getpid();
 #ifdef USE_ITHREADS
             PerlLibzmq2_trace( " + threads enabled, aTHX %p", aTHX );
-            Newxz( RETVAL, 1, PerlLibzmq2_Context );
             RETVAL->interp = aTHX;
-            RETVAL->ctxt   = cxt;
-            PerlLibzmq2_trace( " + created context wrapper %p", RETVAL );
-            PerlLibzmq2_trace( " + zmq context %p", RETVAL->ctxt );
-#else
-            PerlLibzmq2_trace( " + non-threaded context");
-            RETVAL = cxt;
 #endif
+            PerlLibzmq2_trace( " + zmq context %p", RETVAL->ctxt );
         }
         PerlLibzmq2_trace( "END zmq_init");
     OUTPUT:
         RETVAL
 
 int
-PerlLibzmq2_zmq_term( context )
-        PerlLibzmq2_Context *context;
+PerlLibzmq2_zmq_term( ctxt )
+        PerlLibzmq2_Context *ctxt;
     CODE:
-#ifdef USE_ITHREADS
-        RETVAL = zmq_term( context->ctxt );
-#else
-        RETVAL = zmq_term( context );
-#endif
-        if ( RETVAL != 0 ) {
-            SET_BANG;
-        } else {
-            {
-                /* Cancel the SV's mg attr so to not call zmq_term automatically */
-                MAGIC *mg =
-                    PerlLibzmq2_Context_mg_find( aTHX_ SvRV(ST(0)), &PerlLibzmq2_Context_vtbl );
-                mg->mg_ptr = NULL;
-            }
+        RETVAL = PerlLibzmq2_Context_invalidate( ctxt );
 
+        if (RETVAL == 0) {
+            /* Cancel the SV's mg attr so to not call zmq_term automatically */
+            MAGIC *mg =
+                PerlLibzmq2_Context_mg_find( aTHX_ SvRV(ST(0)), &PerlLibzmq2_Context_vtbl );
+            mg->mg_ptr = NULL;
             /* mark the original SV's _closed flag as true */
             {
                 SV *svr = SvRV(ST(0));
@@ -555,11 +573,10 @@ PerlLibzmq2_zmq_socket (ctxt, type)
         PerlLibzmq2_trace( "START zmq_socket" );
 #ifdef USE_ITHREADS
         PerlLibzmq2_trace( " + context wrapper %p, zmq context %p", ctxt, ctxt->ctxt );
-        sock = zmq_socket( ctxt->ctxt, type );
 #else
         PerlLibzmq2_trace( " + zmq context %p", ctxt );
-        sock = zmq_socket( ctxt, type );
 #endif
+        sock = zmq_socket( ctxt->ctxt, type );
 
         if ( sock == NULL ) {
             RETVAL = NULL;
@@ -568,6 +585,7 @@ PerlLibzmq2_zmq_socket (ctxt, type)
             Newxz( RETVAL, 1, PerlLibzmq2_Socket );
             RETVAL->assoc_ctxt = ST(0);
             RETVAL->socket = sock;
+            RETVAL->pid = getpid();
             SvREFCNT_inc(RETVAL->assoc_ctxt);
 
             PerlLibzmq2_trace( " + created socket %p", RETVAL );

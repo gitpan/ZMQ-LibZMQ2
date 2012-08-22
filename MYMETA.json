@@ -5,7 +5,7 @@
       "Steffen Mueller <smueller@cpan.org>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Module::Install version 1.04, CPAN::Meta::Converter version 2.112150",
+   "generated_by" : "Module::Install version 1.06, CPAN::Meta::Converter version 2.112150",
    "license" : [
       "perl_5"
    ],
@@ -56,6 +56,6 @@
          "http://dev.perl.org/licenses/"
       ]
    },
-   "version" : "1.00",
+   "version" : "1.02",
    "x_module_name" : "ZMQ::LibZMQ2"
 }

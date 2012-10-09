@@ -36,4 +36,4 @@ requires:
   ZMQ::Constants: 1.00
 resources:
   license: http://dev.perl.org/licenses/
-version: 1.02
+version: 1.03

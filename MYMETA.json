@@ -56,6 +56,6 @@
          "http://dev.perl.org/licenses/"
       ]
    },
-   "version" : "1.03",
+   "version" : "1.04",
    "x_module_name" : "ZMQ::LibZMQ2"
 }

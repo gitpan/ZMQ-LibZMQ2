@@ -5,7 +5,7 @@ use XSLoader;
 use ZMQ::Constants ();
 
 BEGIN {
-    our $VERSION = '1.03';
+    our $VERSION = '1.04';
     XSLoader::load(__PACKAGE__, $VERSION);
 }
 
@@ -159,12 +159,25 @@ If you want to compile with debugging on:
 =head1 DESCRIPTION
 
 The C<ZMQ::LibZMQ2> module is a wrapper of the 0MQ message passing library for Perl. 
-It's a thin wrapper around the C API. Please read L<http://zeromq.org> for
-more details on 0MQ.
+
+Before you start using this module, please make sure you have read and understood the zguide.
+
+    http://zguide.zeromq.org/page:all
+
+For specifics on each function, please refer to their documentation for the definitive explanation of each.
+
+    http://api.zeromq.org/2-2:_start
+
+This module is merely a thin wrapper around the C API: You need to understand
+how the C API works in order to properly use this module.
 
 Note that this is a wrapper for libzmq 2.x. For 3.x, you need to check L<ZMQ::LibZMQ3>
 
 =head1 BASIC USAGE
+
+Please make sure you already have ZMQ::Constants module. If you installed ZMQ::L
+ibZMQ3 from CPAN via cpan/cpanm, it should have already been installed for you. 
+All socket types and other flags are declared in this module.
 
 To start using ZMQ::LibZMQ2, you need to create a context object, then as many ZMQ::LibZMQ2::Socket obects as you need:
 
@@ -242,7 +255,9 @@ Create separate contexts for each process, and therefore you shouldn't
 be sharing the socket objects either.
 
 For multi-thread environemnts, you can share the same context object. However
-you cannot share sockets.
+you cannot share sockets. Note that while the Perl Socket objects survive
+between threads, their underlying C structures do not, and you will get an 
+error if you try to use them between sockets.
 
 =head1 FUNCTIONS
 
@@ -515,6 +530,10 @@ you know which version of zeromq you're working with.
 L<http://zeromq.org>
 
 L<http://github.com/lestrrat/p5-ZMQ>
+
+L<ZMQ::Constants>
+
+L<ZMQ::LibZMQ3>
 
 =head1 AUTHOR
 

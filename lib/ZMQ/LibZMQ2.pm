@@ -5,7 +5,7 @@ use XSLoader;
 use ZMQ::Constants ();
 
 BEGIN {
-    our $VERSION = '1.05';
+    our $VERSION = '1.06';
     XSLoader::load(__PACKAGE__, $VERSION);
 }
 
@@ -15,6 +15,9 @@ use constant PERL_LIBZMQ2_RCVMORE_HACK =>
 ;
 
 our @EXPORT = qw(
+    zmq_errno
+    zmq_strerror
+
     zmq_init
     zmq_term
 
@@ -476,7 +479,7 @@ returns a 3-element list of the version numbers:
 
 =head2 $rv = zmq_device($type, $sock1, $sock2)
 
-Creates a new "device". See C<zmq_device> for details. zmq_device() will only return if/when the current context is closed. Therefore, the return value is always -1, and errno is always ETERM
+Creates a new "device". See C<zmq_device> for details. zmq_device() will only return if/when the current context is closed. Therefore, the return value is always -1, and $! is always ETERM
 
 =head1 FUNCTIONS PROVIDED BY ZMQ::LIBZMQ2
 
